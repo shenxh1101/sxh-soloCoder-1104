@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import io
+import os
 import sys
 from pathlib import Path
 
@@ -8,7 +10,7 @@ from .cache import detect_changes, load_cache, save_cache
 from .exporter import export_dot
 from .graph import KnowledgeGraph, build_graph
 from .heatmap import render_heatmap
-from .report import generate_report
+from .report import export_json_report, generate_report
 
 
 def _apply_filters(graph: KnowledgeGraph, args: argparse.Namespace) -> KnowledgeGraph:
@@ -61,6 +63,10 @@ def cmd_analyze(args: argparse.Namespace) -> None:
     report = generate_report(graph, top_n=args.top)
     print(report)
 
+    if args.json_output:
+        export_json_report(graph, args.json_output)
+        print(f"  ✅ JSON report saved to: {args.json_output}")
+
 
 def cmd_export(args: argparse.Namespace) -> None:
     vault = args.vault
@@ -88,6 +94,13 @@ def cmd_export(args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    try:
+        if sys.platform == "win32" and hasattr(sys.stdout, "buffer"):
+            utf8_stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+            sys.stdout = utf8_stdout
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser(
         prog="kb-heatmap",
         description="📊 Knowledge Base Heatmap Analyzer — scan Markdown notes, build knowledge graph, and visualize heat",
@@ -107,6 +120,7 @@ def main(argv: list[str] | None = None) -> None:
     analyze_parser.add_argument("--top", type=int, default=10, help="Number of top hubs to show (default: 10)")
     analyze_parser.add_argument("--cols", type=int, default=20, help="Heatmap columns (default: 20)")
     analyze_parser.add_argument("--report-only", action="store_true", help="Only show report, skip heatmap")
+    analyze_parser.add_argument("--json", dest="json_output", help="Export full report to JSON file path")
 
     export_parser = subparsers.add_parser(
         "export", parents=[shared], help="Export knowledge graph as Graphviz DOT file"

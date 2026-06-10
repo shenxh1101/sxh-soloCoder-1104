@@ -4,10 +4,28 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from .parser import NoteInfo
+from .parser import LinkInfo, NoteInfo
 
 
 CACHE_FILENAME = ".kb_heatmap_cache.json"
+
+
+def _link_info_to_dict(li: LinkInfo) -> dict:
+    return {
+        "raw": li.raw,
+        "target_path": li.target_path,
+        "anchor": li.anchor,
+        "alias": li.alias,
+    }
+
+
+def _dict_to_link_info(d: dict) -> LinkInfo:
+    return LinkInfo(
+        raw=d.get("raw", ""),
+        target_path=d.get("target_path", ""),
+        anchor=d.get("anchor", ""),
+        alias=d.get("alias", ""),
+    )
 
 
 def _note_to_dict(note: NoteInfo) -> dict:
@@ -15,6 +33,7 @@ def _note_to_dict(note: NoteInfo) -> dict:
         "path": str(note.path),
         "title": note.title,
         "links": note.links,
+        "raw_links": [_link_info_to_dict(li) for li in note.raw_links],
         "tags": note.tags,
         "mtime": note.mtime,
         "content_hash": note.content_hash,
@@ -22,10 +41,13 @@ def _note_to_dict(note: NoteInfo) -> dict:
 
 
 def _dict_to_note(d: dict) -> NoteInfo:
+    raw_links_data = d.get("raw_links", [])
+    raw_links = [_dict_to_link_info(rld) for rld in raw_links_data]
     return NoteInfo(
         path=Path(d["path"]),
         title=d["title"],
         links=d["links"],
+        raw_links=raw_links,
         tags=d["tags"],
         mtime=d["mtime"],
         content_hash=d["content_hash"],

@@ -1,8 +1,34 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from .graph import KnowledgeGraph
+
+
+_DOT_UNSAFE_CHARS = re.compile(r'["\\]')
+_DOT_ID_UNSAFE = re.compile(r'[^a-zA-Z0-9_\-]')
+
+
+def _dot_escape(s: str) -> str:
+    if s is None:
+        return ""
+    s = str(s)
+    s = s.replace("\\", "\\\\")
+    s = s.replace('"', '\\"')
+    s = s.replace("\n", "\\n")
+    s = s.replace("\r", "\\r")
+    s = s.replace("\t", "\\t")
+    return s
+
+
+def _dot_id(s: str) -> str:
+    cleaned = _DOT_ID_UNSAFE.sub("_", s)
+    if not cleaned:
+        cleaned = "node"
+    if cleaned[0].isdigit():
+        cleaned = "_" + cleaned
+    return cleaned
 
 
 def _heat_to_graphviz_color(heat: float) -> str:
@@ -24,34 +50,39 @@ def export_dot(graph: KnowledgeGraph, output_path: str) -> None:
     if max_heat == 0:
         max_heat = 1.0
 
-    for key, note in graph.notes.items():
+    key_to_node_id: dict[str, str] = {}
+    for idx, (key, note) in enumerate(graph.notes.items()):
+        node_id = f"n{idx}_{_dot_id(note.title)}"
+        key_to_node_id[key] = node_id
         heat = graph.heat_scores.get(key, 0.0) / max_heat
         color = _heat_to_graphviz_color(heat)
         inbound = graph.inbound_count.get(key, 0)
         outbound = sum(1 for e in graph.edges if e.source == key)
         fontsize = 10 + int(heat * 8)
         penwidth = 1.0 + heat * 2.0
-        tags_label = "\\n".join(f"#{t}" for t in note.tags[:3]) if note.tags else ""
-        label = note.title
+        tags_label = "\\n".join(f"#{_dot_escape(t)}" for t in note.tags[:3]) if note.tags else ""
+        label_parts = [_dot_escape(note.title)]
         if tags_label:
-            label += "\\n" + tags_label
+            label_parts.append(tags_label)
+        label = "\\n".join(label_parts)
+        tooltip = _dot_escape(f"←{inbound} →{outbound} heat={heat:.3f}")
         lines.append(
-            f'    "{note.title}" ['
+            f'    {node_id} ['
             f'fillcolor="{color}", '
             f'fontsize={fontsize}, '
             f'penwidth={penwidth:.1f}, '
             f'label="{label}", '
-            f'tooltip="←{inbound} →{outbound} heat={heat:.3f}"'
+            f'tooltip="{tooltip}"'
             f'];'
         )
 
     lines.append('')
 
     for edge in graph.edges:
-        src = graph.notes.get(edge.source)
-        tgt = graph.notes.get(edge.target)
-        if src and tgt:
-            lines.append(f'    "{src.title}" -> "{tgt.title}";')
+        src_id = key_to_node_id.get(edge.source)
+        tgt_id = key_to_node_id.get(edge.target)
+        if src_id and tgt_id:
+            lines.append(f'    {src_id} -> {tgt_id};')
 
     lines.append('}')
     Path(output_path).write_text("\n".join(lines), encoding="utf-8")
