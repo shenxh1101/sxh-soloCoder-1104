@@ -1,0 +1,43 @@
+digraph KnowledgeGraph {
+    rankdir=LR;
+    newrank=true;
+    compound=true;
+    node [shape=box, style="rounded,filled", fontname="Arial", margin="0.15,0.1"];
+    edge [color="#888888", arrowsize=0.6, penwidth=0.8];
+
+    subgraph "cluster_c0_python" {
+        label="#python";
+        style="rounded,filled";
+        fillcolor="#23eeeb33";
+        color="#23eeeb";
+        fontname="Arial";
+        fontsize=11;
+        n0_New_Research [fillcolor="#ff0000", fontsize="18", penwidth="3.0", label="New-Research\l#python\l#machine-learning\l#project-alpha\l", tooltip="New-Research | in:1 out:0 heat:1.000"];
+        n1_Old_Note [fillcolor="#e62118", fontsize="17", penwidth="2.8", label="Old-Note\l#python\l#data-science\l#project-alpha\l", tooltip="Old-Note | in:1 out:2 heat:0.906"];
+        n2_Python_Programming_Guide [fillcolor="#6b9793", fontsize="13", penwidth="1.8", label="Python Programming Guide\l#python\l#programming\l#coding\l", tooltip="Python Programming Guide | in:0 out:0 heat:0.422"];
+    }
+
+    subgraph "cluster_c1_project_alpha" {
+        label="#project-alpha";
+        style="rounded,filled";
+        fillcolor="#e89cb733";
+        color="#e89cb7";
+        fontname="Arial";
+        fontsize=11;
+        n3_Roadmap [fillcolor="#b96145", fontsize="15", penwidth="2.5", label="Roadmap\l#project-alpha\l#planning\l", tooltip="Roadmap | in:1 out:1 heat:0.728"];
+    }
+
+    subgraph "cluster_c2_statistics" {
+        label="#statistics";
+        style="rounded,filled";
+        fillcolor="#a912a933";
+        color="#a912a9";
+        fontname="Arial";
+        fontsize=11;
+        n4_Statistics_Primer [fillcolor="#4967b5", fontsize="12", penwidth="1.6", label="Statistics Primer\l#statistics\l#math\l", tooltip="Statistics Primer | in:0 out:0 heat:0.289"];
+    }
+
+    n1_Old_Note -> n3_Roadmap [tooltip="Old-Note → Roadmap"];
+    n1_Old_Note -> n0_New_Research [tooltip="Old-Note → New-Research"];
+    n3_Roadmap -> n1_Old_Note [tooltip="Roadmap → Old-Note"];
+}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import time
 from pathlib import Path
@@ -54,6 +55,44 @@ def _heat_trend_arrow(
         return f"{RED}↓ cooling{RESET}"
     else:
         return f"{DIM}→ stable{RESET}"
+
+
+def get_tag_cooccurrences(graph: KnowledgeGraph, min_count: int = 1) -> list[tuple[str, str, int]]:
+    pairs: list[tuple[str, str, int]] = []
+    for key, count in graph.tag_cooccurrence.items():
+        if "|" in key:
+            tag_a, tag_b = key.split("|", 1)
+            if count >= min_count:
+                pairs.append((tag_a, tag_b, count))
+    pairs.sort(key=lambda x: x[2], reverse=True)
+    return pairs
+
+
+def export_tag_cooccurrence_csv(graph: KnowledgeGraph, output_path: str, min_count: int = 1) -> list[list[str]]:
+    pairs = get_tag_cooccurrences(graph, min_count)
+    rows: list[list[str]] = [["tag_a", "tag_b", "count"]]
+    for a, b, c in pairs:
+        rows.append([a, b, str(c)])
+    out = Path(output_path)
+    with out.open("w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+    return rows
+
+
+def render_tag_cooccurrence(graph: KnowledgeGraph, top_n: int = 10) -> str:
+    pairs = get_tag_cooccurrences(graph, 1)
+    if not pairs:
+        return ""
+    lines: list[str] = []
+    lines.append(f"  {MAGENTA}{BOLD}🔗 Tag Co-occurrences{RESET}")
+    lines.append(f"  {'─' * 40}")
+    max_c = max((c for _, _, c in pairs), default=1)
+    for tag_a, tag_b, count in pairs[:top_n]:
+        bar = "█" * min(int(count / max_c * 30), 30)
+        lines.append(f"    #{tag_a:<15} + #{tag_b:<15}  {count:>3}  {DIM}{bar}{RESET}")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def generate_report(graph: KnowledgeGraph, top_n: int = 10) -> str:
@@ -160,6 +199,10 @@ def generate_report(graph: KnowledgeGraph, top_n: int = 10) -> str:
             lines.append(f"    #{tag:<20} {count:>3}  {DIM}{bar}{RESET}")
         lines.append("")
 
+    cooc_text = render_tag_cooccurrence(graph, top_n)
+    if cooc_text:
+        lines.append(cooc_text)
+
     lines.append(f"  {BOLD}{'═' * 52}{RESET}")
     lines.append("")
     return "\n".join(lines)
@@ -255,9 +298,15 @@ def export_json_report(
         "folder": filter_folder or "",
     }
 
+    cooc_data = [
+        {"tag_a": a, "tag_b": b, "count": c}
+        for a, b, c in get_tag_cooccurrences(graph, 1)
+    ]
+
     report = {
         "generated_at": time.time(),
         "filters": filters_applied,
+        "heat_weights": graph.heat_weights.to_dict(),
         "overview": overview,
         "core_hubs_7d": hubs_7d,
         "core_hubs_30d": hubs_30d,
@@ -265,6 +314,7 @@ def export_json_report(
         "isolated_notes": isolated,
         "broken_links": broken_links,
         "top_tags": tags_data,
+        "tag_cooccurrences": cooc_data,
         "notes": notes_data,
         "edges": edges_data,
     }

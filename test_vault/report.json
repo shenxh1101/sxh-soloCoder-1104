@@ -1,0 +1,407 @@
+{
+  "generated_at": 1781114776.3913321,
+  "filters": {
+    "tags": [],
+    "folder": ""
+  },
+  "heat_weights": {
+    "w_inbound": 0.5,
+    "w_tags": 0.2,
+    "w_recency": 0.3,
+    "recency_half_life_days": 60.0
+  },
+  "overview": {
+    "total_notes": 5,
+    "total_links": 3,
+    "broken_links_count": 5,
+    "unique_tags": 9
+  },
+  "core_hubs_7d": [
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\New-Research.md",
+      "title": "New-Research",
+      "heat": 0.4999987218530046,
+      "inbound": 1,
+      "outbound": 0,
+      "tags": [
+        "python",
+        "machine-learning",
+        "project-alpha",
+        "data-science"
+      ],
+      "mtime": 1781114754.301054
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md",
+      "title": "Python Programming Guide",
+      "heat": 0.41107817130426105,
+      "inbound": 0,
+      "outbound": 0,
+      "tags": [
+        "python",
+        "programming",
+        "coding"
+      ],
+      "mtime": 1781114207.1251612
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Statistics Primer.md",
+      "title": "Statistics Primer",
+      "heat": 0.3444115046375944,
+      "inbound": 0,
+      "outbound": 0,
+      "tags": [
+        "statistics",
+        "math"
+      ],
+      "mtime": 1781114207.1251612
+    }
+  ],
+  "core_hubs_30d": [
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\New-Research.md",
+      "title": "New-Research",
+      "heat": 0.4999987218518318,
+      "inbound": 1,
+      "outbound": 0,
+      "tags": [
+        "python",
+        "machine-learning",
+        "project-alpha",
+        "data-science"
+      ],
+      "mtime": 1781114754.301054
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md",
+      "title": "Python Programming Guide",
+      "heat": 0.4110781713030885,
+      "inbound": 0,
+      "outbound": 0,
+      "tags": [
+        "python",
+        "programming",
+        "coding"
+      ],
+      "mtime": 1781114207.1251612
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Statistics Primer.md",
+      "title": "Statistics Primer",
+      "heat": 0.34441150463642184,
+      "inbound": 0,
+      "outbound": 0,
+      "tags": [
+        "statistics",
+        "math"
+      ],
+      "mtime": 1781114207.1251612
+    }
+  ],
+  "core_hubs_all": [
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\New-Research.md",
+      "title": "New-Research",
+      "heat": 0.9999987218513351,
+      "inbound": 1,
+      "outbound": 0,
+      "tags": [
+        "python",
+        "machine-learning",
+        "project-alpha",
+        "data-science"
+      ],
+      "mtime": 1781114754.301054
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Old-Note.md",
+      "title": "Old-Note",
+      "heat": 0.8777775006235237,
+      "inbound": 1,
+      "outbound": 2,
+      "tags": [
+        "python",
+        "data-science",
+        "project-alpha"
+      ],
+      "mtime": 1778522765.6117847
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Roadmap.md",
+      "title": "Roadmap",
+      "heat": 0.7888886117346348,
+      "inbound": 1,
+      "outbound": 1,
+      "tags": [
+        "project-alpha",
+        "planning"
+      ],
+      "mtime": 1778522765.6117847
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md",
+      "title": "Python Programming Guide",
+      "heat": 0.41107817130259194,
+      "inbound": 0,
+      "outbound": 0,
+      "tags": [
+        "python",
+        "programming",
+        "coding"
+      ],
+      "mtime": 1781114207.1251612
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Statistics Primer.md",
+      "title": "Statistics Primer",
+      "heat": 0.3444115046359253,
+      "inbound": 0,
+      "outbound": 0,
+      "tags": [
+        "statistics",
+        "math"
+      ],
+      "mtime": 1781114207.1251612
+    }
+  ],
+  "isolated_notes": [
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md",
+      "title": "Python Programming Guide",
+      "heat": 0.41107817130259194,
+      "tags": [
+        "python",
+        "programming",
+        "coding"
+      ],
+      "mtime": 1781114207.1251612
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Statistics Primer.md",
+      "title": "Statistics Primer",
+      "heat": 0.3444115046359253,
+      "tags": [
+        "statistics",
+        "math"
+      ],
+      "mtime": 1781114207.1251612
+    }
+  ],
+  "broken_links": [
+    {
+      "source_path": "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md",
+      "source_title": "Python Programming Guide",
+      "raw_link": "Data Science Notes",
+      "target": "Data Science Notes"
+    },
+    {
+      "source_path": "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md",
+      "source_title": "Python Programming Guide",
+      "raw_link": "Machine Learning 101|ML Overview",
+      "target": "Machine Learning 101"
+    },
+    {
+      "source_path": "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md",
+      "source_title": "Python Programming Guide",
+      "raw_link": "Machine Learning 101#Algorithms|the ML algorithms",
+      "target": "Machine Learning 101"
+    },
+    {
+      "source_path": "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md",
+      "source_title": "Python Programming Guide",
+      "raw_link": "project/2025_research/paper-summary|latest paper",
+      "target": "project/2025_research/paper-summary"
+    },
+    {
+      "source_path": "D:\\code\\TraeProjects\\1104\\test_vault\\Statistics Primer.md",
+      "source_title": "Statistics Primer",
+      "raw_link": "Data Science Notes",
+      "target": "Data Science Notes"
+    }
+  ],
+  "top_tags": [
+    {
+      "tag": "python",
+      "count": 3
+    },
+    {
+      "tag": "project-alpha",
+      "count": 3
+    },
+    {
+      "tag": "data-science",
+      "count": 2
+    },
+    {
+      "tag": "machine-learning",
+      "count": 1
+    },
+    {
+      "tag": "programming",
+      "count": 1
+    },
+    {
+      "tag": "coding",
+      "count": 1
+    },
+    {
+      "tag": "planning",
+      "count": 1
+    },
+    {
+      "tag": "statistics",
+      "count": 1
+    },
+    {
+      "tag": "math",
+      "count": 1
+    }
+  ],
+  "tag_cooccurrences": [
+    {
+      "tag_a": "project-alpha",
+      "tag_b": "python",
+      "count": 2
+    },
+    {
+      "tag_a": "data-science",
+      "tag_b": "python",
+      "count": 2
+    },
+    {
+      "tag_a": "data-science",
+      "tag_b": "project-alpha",
+      "count": 2
+    },
+    {
+      "tag_a": "machine-learning",
+      "tag_b": "python",
+      "count": 1
+    },
+    {
+      "tag_a": "machine-learning",
+      "tag_b": "project-alpha",
+      "count": 1
+    },
+    {
+      "tag_a": "data-science",
+      "tag_b": "machine-learning",
+      "count": 1
+    },
+    {
+      "tag_a": "programming",
+      "tag_b": "python",
+      "count": 1
+    },
+    {
+      "tag_a": "coding",
+      "tag_b": "python",
+      "count": 1
+    },
+    {
+      "tag_a": "coding",
+      "tag_b": "programming",
+      "count": 1
+    },
+    {
+      "tag_a": "planning",
+      "tag_b": "project-alpha",
+      "count": 1
+    },
+    {
+      "tag_a": "math",
+      "tag_b": "statistics",
+      "count": 1
+    }
+  ],
+  "notes": [
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\New-Research.md",
+      "title": "New-Research",
+      "tags": [
+        "python",
+        "machine-learning",
+        "project-alpha",
+        "data-science"
+      ],
+      "links_out_count": 0,
+      "links_in_count": 1,
+      "mtime": 1781114754.301054,
+      "heat_all": 0.9999987218513351,
+      "heat_30d": 0.4999987218518318,
+      "heat_7d": 0.4999987218530046
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Old-Note.md",
+      "title": "Old-Note",
+      "tags": [
+        "python",
+        "data-science",
+        "project-alpha"
+      ],
+      "links_out_count": 2,
+      "links_in_count": 1,
+      "mtime": 1778522765.6117847,
+      "heat_all": 0.8777775006235237,
+      "heat_30d": 0.0,
+      "heat_7d": 0.0
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md",
+      "title": "Python Programming Guide",
+      "tags": [
+        "python",
+        "programming",
+        "coding"
+      ],
+      "links_out_count": 0,
+      "links_in_count": 0,
+      "mtime": 1781114207.1251612,
+      "heat_all": 0.41107817130259194,
+      "heat_30d": 0.4110781713030885,
+      "heat_7d": 0.41107817130426105
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Roadmap.md",
+      "title": "Roadmap",
+      "tags": [
+        "project-alpha",
+        "planning"
+      ],
+      "links_out_count": 1,
+      "links_in_count": 1,
+      "mtime": 1778522765.6117847,
+      "heat_all": 0.7888886117346348,
+      "heat_30d": 0.0,
+      "heat_7d": 0.0
+    },
+    {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Statistics Primer.md",
+      "title": "Statistics Primer",
+      "tags": [
+        "statistics",
+        "math"
+      ],
+      "links_out_count": 0,
+      "links_in_count": 0,
+      "mtime": 1781114207.1251612,
+      "heat_all": 0.3444115046359253,
+      "heat_30d": 0.34441150463642184,
+      "heat_7d": 0.3444115046375944
+    }
+  ],
+  "edges": [
+    {
+      "source": "D:\\code\\TraeProjects\\1104\\test_vault\\Old-Note.md",
+      "target": "D:\\code\\TraeProjects\\1104\\test_vault\\Roadmap.md"
+    },
+    {
+      "source": "D:\\code\\TraeProjects\\1104\\test_vault\\Old-Note.md",
+      "target": "D:\\code\\TraeProjects\\1104\\test_vault\\New-Research.md"
+    },
+    {
+      "source": "D:\\code\\TraeProjects\\1104\\test_vault\\Roadmap.md",
+      "target": "D:\\code\\TraeProjects\\1104\\test_vault\\Old-Note.md"
+    }
+  ]
+}

@@ -7,9 +7,10 @@ from pathlib import Path
 
 from .cache import detect_changes, load_cache, save_cache
 from .exporter import export_dot
-from .graph import KnowledgeGraph, build_graph
+from .graph import HeatWeights, KnowledgeGraph, build_graph
 from .heatmap import render_heatmap
-from .report import export_json_report, generate_report
+from .history import load_history, save_snapshot
+from .report import export_json_report, export_tag_cooccurrence_csv, generate_report
 from .trend import export_trend_csv, render_trend_text
 
 
@@ -21,11 +22,26 @@ def _apply_filters(graph: KnowledgeGraph, args: argparse.Namespace) -> Knowledge
     return graph
 
 
+def _parse_heat_weights(args: argparse.Namespace) -> HeatWeights:
+    hw = HeatWeights()
+    if args.weight_inbound is not None:
+        hw.w_inbound = args.weight_inbound
+    if args.weight_tags is not None:
+        hw.w_tags = args.weight_tags
+    if args.weight_recency is not None:
+        hw.w_recency = args.weight_recency
+    if args.half_life_days is not None:
+        hw.recency_half_life_days = args.half_life_days
+    return hw
+
+
 def cmd_analyze(args: argparse.Namespace) -> None:
     vault = args.vault
     if not Path(vault).is_dir():
         print(f"Error: '{vault}' is not a valid directory.", file=sys.stderr)
         sys.exit(1)
+
+    heat_weights = _parse_heat_weights(args)
 
     use_cache = not args.no_cache
     cached_notes = None
@@ -43,13 +59,22 @@ def cmd_analyze(args: argparse.Namespace) -> None:
         else:
             print("  ℹ No cache found, performing full scan...")
 
-    graph = build_graph(vault, cached_notes=cached_notes, changed_files=changed_files)
+    graph = build_graph(
+        vault,
+        cached_notes=cached_notes,
+        changed_files=changed_files,
+        heat_weights=heat_weights,
+    )
 
     if use_cache:
         save_cache(vault, graph.notes)
         print(f"  ℹ Cache updated ({len(graph.notes)} notes)")
 
     graph = _apply_filters(graph, args)
+
+    if not args.no_history:
+        snap = save_snapshot(vault, graph, args.filter_tags, args.filter_folder)
+        print(f"  ℹ History snapshot saved (id={int(snap['timestamp'])})")
 
     if args.no_color or not sys.stdout.isatty():
         use_color = False
@@ -61,10 +86,13 @@ def cmd_analyze(args: argparse.Namespace) -> None:
         print(heatmap)
 
     if args.trend:
+        history = None if args.no_history else load_history(vault, limit=args.trend_window * 3)
         trend = render_trend_text(
             graph,
             period=args.trend_period,
             window_days=args.trend_window,
+            heat_window=args.heat_window,
+            history_snapshots=history,
         )
         print(trend)
 
@@ -72,14 +100,20 @@ def cmd_analyze(args: argparse.Namespace) -> None:
     print(report)
 
     if args.trend_csv:
+        history = None if args.no_history else load_history(vault, limit=args.trend_window * 3)
         export_trend_csv(
             graph,
             args.trend_csv,
             period=args.trend_period,
             window_days=args.trend_window,
-            mark_absence=True,
+            heat_window=args.heat_window,
+            history_snapshots=history,
         )
         print(f"  ✅ Trend CSV saved to: {args.trend_csv}")
+
+    if args.tag_cooccurrence_csv:
+        export_tag_cooccurrence_csv(graph, args.tag_cooccurrence_csv)
+        print(f"  ✅ Tag co-occurrence CSV saved to: {args.tag_cooccurrence_csv}")
 
     if args.json_output:
         export_json_report(
@@ -97,13 +131,20 @@ def cmd_export(args: argparse.Namespace) -> None:
         print(f"Error: '{vault}' is not a valid directory.", file=sys.stderr)
         sys.exit(1)
 
+    heat_weights = _parse_heat_weights(args)
+
     use_cache = not args.no_cache
     cached_notes = load_cache(vault) if use_cache else None
     changed_files = None
     if cached_notes is not None:
         changed_files = detect_changes(vault, cached_notes)
 
-    graph = build_graph(vault, cached_notes=cached_notes, changed_files=changed_files)
+    graph = build_graph(
+        vault,
+        cached_notes=cached_notes,
+        changed_files=changed_files,
+        heat_weights=heat_weights,
+    )
 
     if use_cache:
         save_cache(vault, graph.notes)
@@ -148,6 +189,22 @@ def main(argv: list[str] | None = None) -> None:
     shared.add_argument("--filter-folder", dest="filter_folder", help="Filter notes by subfolder")
     shared.add_argument("--no-cache", action="store_true", help="Disable incremental cache, force full rescan")
     shared.add_argument("--no-color", action="store_true", help="Disable colored output")
+    shared.add_argument(
+        "--weight-inbound", type=float,
+        help="Heat weight for inbound link count (default: 0.4)",
+    )
+    shared.add_argument(
+        "--weight-tags", type=float,
+        help="Heat weight for tag association score (default: 0.3)",
+    )
+    shared.add_argument(
+        "--weight-recency", type=float,
+        help="Heat weight for recency (default: 0.3)",
+    )
+    shared.add_argument(
+        "--half-life-days", type=float,
+        help="Recency half-life in days (default: 90)",
+    )
 
     analyze_parser = subparsers.add_parser(
         "analyze", parents=[shared], help="Analyze knowledge base and show heatmap + report"
@@ -170,9 +227,25 @@ def main(argv: list[str] | None = None) -> None:
         help="Days to look back for trend (default: 14)",
     )
     analyze_parser.add_argument(
+        "--heat-window",
+        choices=["7d", "30d", "all"],
+        default=None,
+        help="Compute trend heat using only this time window (7d/30d/all, default: all)",
+    )
+    analyze_parser.add_argument(
         "--trend-csv",
         dest="trend_csv",
-        help="Export per-note trend matrix as CSV (absent periods left blank)",
+        help="Export per-note trend matrix as CSV (absent/not-yet-created periods left blank)",
+    )
+    analyze_parser.add_argument(
+        "--tag-cooccurrence-csv",
+        dest="tag_cooccurrence_csv",
+        help="Export tag co-occurrence pairs as CSV",
+    )
+    analyze_parser.add_argument(
+        "--no-history",
+        action="store_true",
+        help="Do not save this run to history snapshots",
     )
 
     export_parser = subparsers.add_parser(

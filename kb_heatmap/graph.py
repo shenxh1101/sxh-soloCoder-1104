@@ -8,6 +8,33 @@ from typing import Optional
 from .parser import BrokenLink, LinkInfo, NoteInfo, parse_note
 
 
+@dataclass
+class HeatWeights:
+    w_inbound: float = 0.4
+    w_tags: float = 0.3
+    w_recency: float = 0.3
+    recency_half_life_days: float = 90.0
+
+    def normalized(self) -> "HeatWeights":
+        total = self.w_inbound + self.w_tags + self.w_recency
+        if total <= 0:
+            return HeatWeights(0.4, 0.3, 0.3, self.recency_half_life_days)
+        return HeatWeights(
+            w_inbound=self.w_inbound / total,
+            w_tags=self.w_tags / total,
+            w_recency=self.w_recency / total,
+            recency_half_life_days=self.recency_half_life_days,
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "w_inbound": self.w_inbound,
+            "w_tags": self.w_tags,
+            "w_recency": self.w_recency,
+            "recency_half_life_days": self.recency_half_life_days,
+        }
+
+
 def normalize_tag(tag: str) -> str:
     t = tag.strip().lstrip("#")
     return t.lower()
@@ -52,6 +79,7 @@ class KnowledgeGraph:
     heat_scores_30d: dict[str, float] = field(default_factory=dict)
     heat_scores_all: dict[str, float] = field(default_factory=dict)
     broken_links: list[BrokenLink] = field(default_factory=list)
+    heat_weights: HeatWeights = field(default_factory=HeatWeights)
 
     def add_note(self, note: NoteInfo) -> None:
         key = str(note.path)
@@ -160,14 +188,11 @@ class KnowledgeGraph:
     def _compute_heat_for_window(
         self,
         max_age_days: Optional[float],
-        w_inbound: float = 0.4,
-        w_tags: float = 0.3,
-        w_recency: float = 0.3,
-        recency_half_life_days: float = 90.0,
     ) -> dict[str, float]:
+        w = self.heat_weights.normalized()
         scores: dict[str, float] = {}
         now = time.time()
-        half_life_sec = recency_half_life_days * 86400.0
+        half_life_sec = w.recency_half_life_days * 86400.0
         max_age_sec = max_age_days * 86400.0 if max_age_days else None
 
         relevant_notes: list[str] = []
@@ -207,9 +232,9 @@ class KnowledgeGraph:
             recency_norm = 1.0 / (1.0 + age_sec / half_life_sec)
 
             heat = (
-                w_inbound * inbound_norm
-                + w_tags * tag_norm
-                + w_recency * recency_norm
+                w.w_inbound * inbound_norm
+                + w.w_tags * tag_norm
+                + w.w_recency * recency_norm
             )
             scores[key] = heat
         return scores
@@ -245,6 +270,7 @@ class KnowledgeGraph:
     def filter_by_tags(self, tags: list[str]) -> KnowledgeGraph:
         tags_lower = set(normalize_tags(tags))
         filtered = KnowledgeGraph()
+        filtered.heat_weights = self.heat_weights
         for key, note in self.notes.items():
             note_tags_lower = {normalize_tag(t) for t in note.tags}
             if note_tags_lower & tags_lower:
@@ -257,6 +283,7 @@ class KnowledgeGraph:
     def filter_by_folder(self, folder: str) -> KnowledgeGraph:
         folder_path = Path(folder).resolve()
         filtered = KnowledgeGraph()
+        filtered.heat_weights = self.heat_weights
         for key, note in self.notes.items():
             try:
                 note_path = note.path.resolve()
@@ -282,9 +309,12 @@ def build_graph(
     cached_notes: Optional[dict[str, NoteInfo]] = None,
     changed_files: Optional[set[str]] = None,
     refresh_mtimes: bool = True,
+    heat_weights: Optional[HeatWeights] = None,
 ) -> KnowledgeGraph:
     vault = Path(vault_path).resolve()
     graph = KnowledgeGraph()
+    if heat_weights is not None:
+        graph.heat_weights = heat_weights
 
     all_md_files: dict[str, Path] = {}
     for md in vault.rglob("*.md"):

@@ -1,0 +1,147 @@
+{
+  "version": 2,
+  "notes": {
+    "D:\\code\\TraeProjects\\1104\\test_vault\\New-Research.md": {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\New-Research.md",
+      "title": "New-Research",
+      "links": [],
+      "raw_links": [],
+      "tags": [
+        "python",
+        "machine-learning",
+        "project-alpha",
+        "data-science"
+      ],
+      "mtime": 1781114754.301054,
+      "content_hash": "34d3ef2ca0d7b593c86a38b04bf8ecde"
+    },
+    "D:\\code\\TraeProjects\\1104\\test_vault\\Old-Note.md": {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Old-Note.md",
+      "title": "Old-Note",
+      "links": [
+        "Roadmap",
+        "New-Research"
+      ],
+      "raw_links": [
+        {
+          "raw": "Roadmap",
+          "target_path": "Roadmap",
+          "anchor": "",
+          "alias": "",
+          "is_same_page": false
+        },
+        {
+          "raw": "New-Research#Key Metrics|new research section",
+          "target_path": "New-Research",
+          "anchor": "Key Metrics",
+          "alias": "new research section",
+          "is_same_page": false
+        }
+      ],
+      "tags": [
+        "python",
+        "data-science",
+        "project-alpha"
+      ],
+      "mtime": 1778522765.6117847,
+      "content_hash": "388c9e02da442e6fc8b0578e057384d0"
+    },
+    "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md": {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Python Programming Guide.md",
+      "title": "Python Programming Guide",
+      "links": [
+        "Data Science Notes",
+        "Machine Learning 101",
+        "project/2025_research/paper-summary"
+      ],
+      "raw_links": [
+        {
+          "raw": "Data Science Notes",
+          "target_path": "Data Science Notes",
+          "anchor": "",
+          "alias": "",
+          "is_same_page": false
+        },
+        {
+          "raw": "Machine Learning 101|ML Overview",
+          "target_path": "Machine Learning 101",
+          "anchor": "",
+          "alias": "ML Overview",
+          "is_same_page": false
+        },
+        {
+          "raw": "Machine Learning 101#Algorithms|the ML algorithms",
+          "target_path": "Machine Learning 101",
+          "anchor": "Algorithms",
+          "alias": "the ML algorithms",
+          "is_same_page": false
+        },
+        {
+          "raw": "project/2025_research/paper-summary|latest paper",
+          "target_path": "project/2025_research/paper-summary",
+          "anchor": "",
+          "alias": "latest paper",
+          "is_same_page": false
+        },
+        {
+          "raw": "#Core Concepts",
+          "target_path": "",
+          "anchor": "Core Concepts",
+          "alias": "",
+          "is_same_page": true
+        }
+      ],
+      "tags": [
+        "python",
+        "programming",
+        "coding"
+      ],
+      "mtime": 1781114207.1251612,
+      "content_hash": "ecb8a82ce7c2336ce73b067a88bf968c"
+    },
+    "D:\\code\\TraeProjects\\1104\\test_vault\\Roadmap.md": {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Roadmap.md",
+      "title": "Roadmap",
+      "links": [
+        "Old-Note"
+      ],
+      "raw_links": [
+        {
+          "raw": "Old-Note",
+          "target_path": "Old-Note",
+          "anchor": "",
+          "alias": "",
+          "is_same_page": false
+        }
+      ],
+      "tags": [
+        "project-alpha",
+        "planning"
+      ],
+      "mtime": 1778522765.6117847,
+      "content_hash": "5a5b015e849e4192948d37c1fbba6df3"
+    },
+    "D:\\code\\TraeProjects\\1104\\test_vault\\Statistics Primer.md": {
+      "path": "D:\\code\\TraeProjects\\1104\\test_vault\\Statistics Primer.md",
+      "title": "Statistics Primer",
+      "links": [
+        "Data Science Notes"
+      ],
+      "raw_links": [
+        {
+          "raw": "Data Science Notes",
+          "target_path": "Data Science Notes",
+          "anchor": "",
+          "alias": "",
+          "is_same_page": false
+        }
+      ],
+      "tags": [
+        "statistics",
+        "math"
+      ],
+      "mtime": 1781114207.1251612,
+      "content_hash": "7749ccfca8baf2ae0453b4b3d25ec3f6"
+    }
+  }
+}

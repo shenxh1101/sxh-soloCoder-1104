@@ -1,0 +1,12 @@
+﻿tag_a,tag_b,count
+project-alpha,python,2
+data-science,python,2
+data-science,project-alpha,2
+machine-learning,python,1
+machine-learning,project-alpha,1
+data-science,machine-learning,1
+programming,python,1
+coding,python,1
+coding,programming,1
+planning,project-alpha,1
+math,statistics,1
