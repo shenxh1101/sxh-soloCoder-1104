@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import csv
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from .graph import KnowledgeGraph
+from .history import collect_earliest_mtimes
 from .parser import NoteInfo
 
 
@@ -21,6 +22,20 @@ class TrendPoint:
     heat: float
     in_window: bool
     existed: bool
+
+
+@dataclass
+class TrendDiffResult:
+    from_snapshot: Optional[dict]
+    to_snapshot: Optional[dict]
+    from_time: float
+    to_time: float
+    gained: list[tuple[str, float, float]] = field(default_factory=list)
+    lost: list[tuple[str, float, float]] = field(default_factory=list)
+    new_notes: list[tuple[str, float]] = field(default_factory=list)
+    removed_notes: list[tuple[str, float]] = field(default_factory=list)
+    unchanged: list[tuple[str, float, float]] = field(default_factory=list)
+    all_changes: list[dict] = field(default_factory=list)
 
 
 def _day_key(ts: float) -> str:
@@ -53,22 +68,32 @@ def _compute_heat_at(
     graph: KnowledgeGraph,
     ref_time: float,
     max_age_days: Optional[float],
+    earliest_mtime_by_path: Optional[dict[str, float]] = None,
 ) -> Optional[float]:
     w = graph.heat_weights.normalized()
     half_life_sec = w.recency_half_life_days * DAY_SEC
     max_age_sec = max_age_days * DAY_SEC if max_age_days else None
 
-    if note.mtime > ref_time + 0.001:
+    path_key = str(note.path)
+    effective_mtime = note.mtime
+    if earliest_mtime_by_path and path_key in earliest_mtime_by_path:
+        effective_mtime = earliest_mtime_by_path[path_key]
+
+    if effective_mtime > ref_time + 0.001:
         return None
 
-    if max_age_sec is not None and (ref_time - note.mtime) > max_age_sec:
+    if max_age_sec is not None and (ref_time - effective_mtime) > max_age_sec:
         return None
 
     sub_inbound: dict[str, int] = {}
     relevant_set: set[str] = set()
     for k, n in graph.notes.items():
-        if n.mtime <= ref_time + 0.001:
-            if max_age_sec is None or (ref_time - n.mtime) <= max_age_sec:
+        nk = str(n.path)
+        em = n.mtime
+        if earliest_mtime_by_path and nk in earliest_mtime_by_path:
+            em = earliest_mtime_by_path[nk]
+        if em <= ref_time + 0.001:
+            if max_age_sec is None or (ref_time - em) <= max_age_sec:
                 relevant_set.add(k)
     for edge in graph.edges:
         if edge.source in relevant_set and edge.target in relevant_set:
@@ -95,7 +120,7 @@ def _compute_heat_at(
     tag_score = sum(graph.tag_cooccurrence.get(tag, 0) for tag in note.tags)
     tag_norm = tag_score / max_tag_count
 
-    age_sec = max(ref_time - note.mtime, 0)
+    age_sec = max(ref_time - effective_mtime, 0)
     recency_norm = 1.0 / (1.0 + age_sec / half_life_sec)
 
     return (
@@ -122,6 +147,8 @@ def generate_trend_series(
     while t <= now:
         periods.append((period_fn(t), t))
         t += step
+
+    earliest_mtime_by_path = collect_earliest_mtimes(history_snapshots or [], graph)
 
     snap_heat_by_path: dict[str, dict[float, float]] = {}
     if history_snapshots:
@@ -159,25 +186,215 @@ def generate_trend_series(
 
     series: dict[str, list[TrendPoint]] = {}
     for key, note in graph.notes.items():
+        path_key = str(note.path)
+        effective_mtime = earliest_mtime_by_path.get(path_key, note.mtime)
         pts: list[TrendPoint] = []
         for period_str, ts in periods:
-            existed = note.mtime <= ts + 0.001
+            existed = effective_mtime <= ts + 0.001
             snap_heat = _lookup_snapshot(key, note, ts)
             if not existed:
                 pts.append(TrendPoint(period=period_str, timestamp=ts, heat=0.0, in_window=False, existed=existed))
             elif snap_heat is not None:
-                if hw_days is not None and (ts - note.mtime) > hw_days * DAY_SEC:
+                if hw_days is not None and (ts - effective_mtime) > hw_days * DAY_SEC:
                     pts.append(TrendPoint(period=period_str, timestamp=ts, heat=0.0, in_window=False, existed=existed))
                 else:
                     pts.append(TrendPoint(period=period_str, timestamp=ts, heat=snap_heat, in_window=True, existed=existed))
             else:
-                h = _compute_heat_at(key, note, graph, ts, hw_days)
+                h = _compute_heat_at(key, note, graph, ts, hw_days, earliest_mtime_by_path)
                 if h is None:
                     pts.append(TrendPoint(period=period_str, timestamp=ts, heat=0.0, in_window=False, existed=existed))
                 else:
                     pts.append(TrendPoint(period=period_str, timestamp=ts, heat=h, in_window=True, existed=existed))
         series[key] = pts
     return series
+
+
+def generate_trend_diff(
+    from_snapshot: dict,
+    to_snapshot: dict,
+    heat_window: str = "all",
+) -> TrendDiffResult:
+    hw_field = {
+        "7d": "heat_7d",
+        "30d": "heat_30d",
+        "all": "heat_all",
+    }[heat_window]
+
+    from_ts = from_snapshot.get("timestamp", 0)
+    to_ts = to_snapshot.get("timestamp", 0)
+    from_notes = from_snapshot.get("notes", {})
+    to_notes = to_snapshot.get("notes", {})
+
+    from_paths = set(from_notes.keys())
+    to_paths = set(to_notes.keys())
+
+    gained: list[tuple[str, float, float]] = []
+    lost: list[tuple[str, float, float]] = []
+    unchanged: list[tuple[str, float, float]] = []
+    new_notes: list[tuple[str, float]] = []
+    removed_notes: list[tuple[str, float]] = []
+    all_changes: list[dict] = []
+
+    common = from_paths & to_paths
+    for path_str in common:
+        fn = from_notes[path_str]
+        tn = to_notes[path_str]
+        fh = fn.get(hw_field, 0.0)
+        th = tn.get(hw_field, 0.0)
+        delta = th - fh
+        change = {
+            "path": path_str,
+            "title": tn.get("title", Path(path_str).stem),
+            "tags": tn.get("tags", []),
+            "heat_from": fh,
+            "heat_to": th,
+            "delta": delta,
+            "change_type": "gained" if delta > 1e-6 else ("lost" if delta < -1e-6 else "unchanged"),
+        }
+        all_changes.append(change)
+        if delta > 1e-6:
+            gained.append((path_str, fh, th))
+        elif delta < -1e-6:
+            lost.append((path_str, fh, th))
+        else:
+            unchanged.append((path_str, fh, th))
+
+    for path_str in to_paths - from_paths:
+        tn = to_notes[path_str]
+        th = tn.get(hw_field, 0.0)
+        new_notes.append((path_str, th))
+        all_changes.append({
+            "path": path_str,
+            "title": tn.get("title", Path(path_str).stem),
+            "tags": tn.get("tags", []),
+            "heat_from": 0.0,
+            "heat_to": th,
+            "delta": th,
+            "change_type": "new",
+        })
+
+    for path_str in from_paths - to_paths:
+        fn = from_notes[path_str]
+        fh = fn.get(hw_field, 0.0)
+        removed_notes.append((path_str, fh))
+        all_changes.append({
+            "path": path_str,
+            "title": fn.get("title", Path(path_str).stem),
+            "tags": fn.get("tags", []),
+            "heat_from": fh,
+            "heat_to": 0.0,
+            "delta": -fh,
+            "change_type": "removed",
+        })
+
+    gained.sort(key=lambda x: x[2] - x[1], reverse=True)
+    lost.sort(key=lambda x: x[1] - x[2], reverse=True)
+    new_notes.sort(key=lambda x: x[1], reverse=True)
+    removed_notes.sort(key=lambda x: x[1], reverse=True)
+    all_changes.sort(key=lambda x: x["delta"], reverse=True)
+
+    return TrendDiffResult(
+        from_snapshot=from_snapshot,
+        to_snapshot=to_snapshot,
+        from_time=from_ts,
+        to_time=to_ts,
+        gained=gained,
+        lost=lost,
+        new_notes=new_notes,
+        removed_notes=removed_notes,
+        unchanged=unchanged,
+        all_changes=all_changes,
+    )
+
+
+def export_trend_diff_csv(
+    diff: TrendDiffResult,
+    output_path: str,
+    graph: Optional[KnowledgeGraph] = None,
+) -> list[list[str]]:
+    rows: list[list[str]] = []
+    header = ["change_type", "title", "path", "tags", "heat_from", "heat_to", "delta"]
+    rows.append(header)
+    for c in diff.all_changes:
+        rows.append([
+            c["change_type"],
+            c["title"],
+            c["path"],
+            ",".join(c["tags"]),
+            f"{c['heat_from']:.6f}",
+            f"{c['heat_to']:.6f}",
+            f"{c['delta']:.6f}",
+        ])
+    out = Path(output_path)
+    with out.open("w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+    return rows
+
+
+def render_trend_diff_text(
+    diff: TrendDiffResult,
+    top_n: int = 10,
+) -> str:
+    lines: list[str] = []
+    from_dt = datetime.fromtimestamp(diff.from_time).strftime("%Y-%m-%d %H:%M:%S")
+    to_dt = datetime.fromtimestamp(diff.to_time).strftime("%Y-%m-%d %H:%M:%S")
+    lines.append("")
+    lines.append(f"  📊 Heat Trend Diff")
+    lines.append(f"  {'─' * 60}")
+    lines.append(f"  From: {from_dt}")
+    lines.append(f"  To:   {to_dt}")
+    lines.append(f"  {'─' * 60}")
+
+    from .heatmap import SIMPLE_PALETTE, _supports_256_color
+    use_color = _supports_256_color()
+
+    def _fmt_path(path_str: str) -> str:
+        if diff.from_snapshot and path_str in diff.from_snapshot.get("notes", {}):
+            return diff.from_snapshot["notes"][path_str].get("title", Path(path_str).stem)
+        if diff.to_snapshot and path_str in diff.to_snapshot.get("notes", {}):
+            return diff.to_snapshot["notes"][path_str].get("title", Path(path_str).stem)
+        return Path(path_str).stem
+
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    RESET = "\033[0m"
+
+    if diff.new_notes:
+        lines.append(f"  {GREEN}✨ New Notes{RESET}")
+        for path_str, th in diff.new_notes[:top_n]:
+            title = _fmt_path(path_str)
+            lines.append(f"    + [{th:.3f}] {title}")
+        lines.append("")
+
+    if diff.removed_notes:
+        lines.append(f"  {RED}🗑️  Removed Notes{RESET}")
+        for path_str, fh in diff.removed_notes[:top_n]:
+            title = _fmt_path(path_str)
+            lines.append(f"    - [{fh:.3f}] {title}")
+        lines.append("")
+
+    if diff.gained:
+        lines.append(f"  {GREEN}🔥 Heat Gained{RESET}")
+        for path_str, fh, th in diff.gained[:top_n]:
+            title = _fmt_path(path_str)
+            delta = th - fh
+            lines.append(f"    ↑ [{fh:.3f} → {th:.3f}] (+{delta:.3f}) {title}")
+        lines.append("")
+
+    if diff.lost:
+        lines.append(f"  {RED}📉 Heat Lost{RESET}")
+        for path_str, fh, th in diff.lost[:top_n]:
+            title = _fmt_path(path_str)
+            delta = fh - th
+            lines.append(f"    ↓ [{fh:.3f} → {th:.3f}] (-{delta:.3f}) {title}")
+        lines.append("")
+
+    total_common = len(diff.gained) + len(diff.lost) + len(diff.unchanged)
+    lines.append(f"  {YELLOW}Summary: +{len(diff.new_notes)} new, -{len(diff.removed_notes)} removed, {len(diff.gained)} ↑, {len(diff.lost)} ↓, {len(diff.unchanged)} stable (of {total_common} common notes){RESET}")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def export_trend_csv(
@@ -232,6 +449,7 @@ def render_trend_text(
     top_n: int = 8,
     heat_window: Optional[str] = None,
     history_snapshots: Optional[list[dict]] = None,
+    skipped_snapshots: Optional[list[dict]] = None,
 ) -> str:
     from .heatmap import SIMPLE_PALETTE, _supports_256_color
 
@@ -253,6 +471,24 @@ def render_trend_text(
     lines.append(f"  📈 Heat Trend — {period.capitalize()} ({window_days} days)")
     if heat_window:
         lines.append(f"  Heat window: {heat_window}")
+    if history_snapshots:
+        lines.append(f"  Using {len(history_snapshots)} historical snapshot(s) for real trend data")
+    if skipped_snapshots:
+        lines.append(f"  ⚠️  Skipped {len(skipped_snapshots)} snapshot(s) due to mismatched filters/weights:")
+        for s in skipped_snapshots[:5]:
+            ts = s.get("timestamp", 0)
+            dt = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+            f = s.get("filters", {})
+            w = s.get("heat_weights", {})
+            reason_parts = []
+            if f.get("tags"):
+                reason_parts.append(f"tags={','.join(f['tags'])}")
+            if f.get("folder"):
+                reason_parts.append(f"folder={f['folder']}")
+            reason_parts.append(f"weights={w.get('w_inbound',0):.2f}/{w.get('w_tags',0):.2f}/{w.get('w_recency',0):.2f}")
+            lines.append(f"     · #{int(ts)} ({dt})  [{', '.join(reason_parts)}]")
+        if len(skipped_snapshots) > 5:
+            lines.append(f"     · ... and {len(skipped_snapshots) - 5} more")
     lines.append(f"  {'─' * 60}")
 
     use_color = _supports_256_color()

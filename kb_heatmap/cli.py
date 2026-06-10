@@ -3,15 +3,31 @@ from __future__ import annotations
 import argparse
 import io
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from .cache import detect_changes, load_cache, save_cache
 from .exporter import export_dot
 from .graph import HeatWeights, KnowledgeGraph, build_graph
 from .heatmap import render_heatmap
-from .history import load_history, save_snapshot
+from .history import (
+    delete_snapshot,
+    filter_snapshots_by_config,
+    format_snapshot_summary,
+    get_snapshot_by_date,
+    get_snapshot_by_id,
+    load_history,
+    prune_snapshots,
+    save_snapshot,
+)
 from .report import export_json_report, export_tag_cooccurrence_csv, generate_report
-from .trend import export_trend_csv, render_trend_text
+from .trend import (
+    export_trend_csv,
+    export_trend_diff_csv,
+    generate_trend_diff,
+    render_trend_diff_text,
+    render_trend_text,
+)
 
 
 def _apply_filters(graph: KnowledgeGraph, args: argparse.Namespace) -> KnowledgeGraph:
@@ -33,6 +49,17 @@ def _parse_heat_weights(args: argparse.Namespace) -> HeatWeights:
     if args.half_life_days is not None:
         hw.recency_half_life_days = args.half_life_days
     return hw
+
+
+def _resolve_snapshot_ref(vault_path: str, ref: str) -> dict | None:
+    try:
+        sid = int(ref)
+        snap = get_snapshot_by_id(vault_path, sid)
+        if snap:
+            return snap
+    except ValueError:
+        pass
+    return get_snapshot_by_date(vault_path, ref)
 
 
 def cmd_analyze(args: argparse.Namespace) -> None:
@@ -85,14 +112,41 @@ def cmd_analyze(args: argparse.Namespace) -> None:
         heatmap = render_heatmap(graph, cols=args.cols, use_color=use_color)
         print(heatmap)
 
+    matched_snapshots = None
+    skipped_snapshots = None
+    if not args.no_history and (args.trend or args.trend_csv or args.diff_from or args.diff_to):
+        all_snapshots = load_history(vault, limit=args.trend_window * 3)
+        if args.strict_config:
+            matched_snapshots, skipped_snapshots = filter_snapshots_by_config(
+                all_snapshots, heat_weights, args.filter_tags, args.filter_folder
+            )
+        else:
+            matched_snapshots = all_snapshots
+            skipped_snapshots = []
+
+    if args.diff_from and args.diff_to:
+        from_snap = _resolve_snapshot_ref(vault, args.diff_from)
+        to_snap = _resolve_snapshot_ref(vault, args.diff_to)
+        if from_snap is None:
+            print(f"Error: Could not find snapshot '{args.diff_from}'", file=sys.stderr)
+            sys.exit(1)
+        if to_snap is None:
+            print(f"Error: Could not find snapshot '{args.diff_to}'", file=sys.stderr)
+            sys.exit(1)
+        diff = generate_trend_diff(from_snap, to_snap, heat_window=args.heat_window or "all")
+        print(render_trend_diff_text(diff, top_n=args.top))
+        if args.diff_csv:
+            export_trend_diff_csv(diff, args.diff_csv, graph)
+            print(f"  ✅ Trend diff CSV saved to: {args.diff_csv}")
+
     if args.trend:
-        history = None if args.no_history else load_history(vault, limit=args.trend_window * 3)
         trend = render_trend_text(
             graph,
             period=args.trend_period,
             window_days=args.trend_window,
             heat_window=args.heat_window,
-            history_snapshots=history,
+            history_snapshots=matched_snapshots,
+            skipped_snapshots=skipped_snapshots,
         )
         print(trend)
 
@@ -100,14 +154,13 @@ def cmd_analyze(args: argparse.Namespace) -> None:
     print(report)
 
     if args.trend_csv:
-        history = None if args.no_history else load_history(vault, limit=args.trend_window * 3)
         export_trend_csv(
             graph,
             args.trend_csv,
             period=args.trend_period,
             window_days=args.trend_window,
             heat_window=args.heat_window,
-            history_snapshots=history,
+            history_snapshots=matched_snapshots,
         )
         print(f"  ✅ Trend CSV saved to: {args.trend_csv}")
 
@@ -160,6 +213,48 @@ def cmd_export(args: argparse.Namespace) -> None:
     export_dot(graph, output, group_by=group_by)
     print(f"  ✅ Graph exported to: {output}")
     print(f"     Render with: dot -Tpng {output} -o graph.png")
+
+
+def cmd_snapshot(args: argparse.Namespace) -> None:
+    vault = args.vault
+    if not Path(vault).is_dir():
+        print(f"Error: '{vault}' is not a valid directory.", file=sys.stderr)
+        sys.exit(1)
+
+    if args.subcommand == "list":
+        snapshots = load_history(vault)
+        if not snapshots:
+            print("  ℹ No snapshots found.")
+            return
+        print(f"  📋 Found {len(snapshots)} snapshot(s):\n")
+        for snap in snapshots:
+            print(format_snapshot_summary(snap, include_notes=args.verbose))
+            print()
+
+    elif args.subcommand == "show":
+        snap = _resolve_snapshot_ref(vault, args.snapshot)
+        if snap is None:
+            print(f"Error: Could not find snapshot '{args.snapshot}'", file=sys.stderr)
+            sys.exit(1)
+        print()
+        print(format_snapshot_summary(snap, include_notes=True))
+        print()
+
+    elif args.subcommand == "delete":
+        try:
+            sid = int(args.snapshot)
+        except ValueError:
+            print(f"Error: '{args.snapshot}' is not a valid snapshot ID (integer)", file=sys.stderr)
+            sys.exit(1)
+        if delete_snapshot(vault, sid):
+            print(f"  ✅ Deleted snapshot #{sid}")
+        else:
+            print(f"Error: Snapshot #{sid} not found", file=sys.stderr)
+            sys.exit(1)
+
+    elif args.subcommand == "prune":
+        removed = prune_snapshots(vault, args.keep_days)
+        print(f"  ✅ Removed {removed} snapshot(s) older than {args.keep_days} days")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -247,6 +342,26 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Do not save this run to history snapshots",
     )
+    analyze_parser.add_argument(
+        "--strict-config",
+        action="store_true",
+        help="Only use history snapshots with matching filters and heat weights for trend analysis",
+    )
+    analyze_parser.add_argument(
+        "--diff-from",
+        dest="diff_from",
+        help="Snapshot ID or YYYY-MM-DD date for trend diff start",
+    )
+    analyze_parser.add_argument(
+        "--diff-to",
+        dest="diff_to",
+        help="Snapshot ID or YYYY-MM-DD date for trend diff end",
+    )
+    analyze_parser.add_argument(
+        "--diff-csv",
+        dest="diff_csv",
+        help="Export trend diff to CSV file path",
+    )
 
     export_parser = subparsers.add_parser(
         "export", parents=[shared], help="Export knowledge graph as Graphviz DOT file"
@@ -256,12 +371,36 @@ def main(argv: list[str] | None = None) -> None:
     group.add_argument("--group-by-tag", action="store_true", help="Group nodes by tag clusters in DOT")
     group.add_argument("--group-by-folder", action="store_true", help="Group nodes by folder clusters in DOT")
 
+    snapshot_parser = subparsers.add_parser(
+        "snapshot", help="Manage history snapshots"
+    )
+    snapshot_subparsers = snapshot_parser.add_subparsers(dest="subcommand", required=True)
+
+    snapshot_list = snapshot_subparsers.add_parser("list", help="List all history snapshots")
+    snapshot_list.add_argument("vault", help="Path to the Markdown notes folder")
+    snapshot_list.add_argument("-v", "--verbose", action="store_true", help="Show top notes for each snapshot")
+
+    snapshot_show = snapshot_subparsers.add_parser("show", help="Show details of a specific snapshot")
+    snapshot_show.add_argument("vault", help="Path to the Markdown notes folder")
+    snapshot_show.add_argument("snapshot", help="Snapshot ID (integer) or YYYY-MM-DD date")
+
+    snapshot_delete = snapshot_subparsers.add_parser("delete", help="Delete a specific snapshot")
+    snapshot_delete.add_argument("vault", help="Path to the Markdown notes folder")
+    snapshot_delete.add_argument("snapshot", help="Snapshot ID (integer) to delete")
+
+    snapshot_prune = snapshot_subparsers.add_parser("prune", help="Delete snapshots older than N days")
+    snapshot_prune.add_argument("vault", help="Path to the Markdown notes folder")
+    snapshot_prune.add_argument("--keep-days", type=int, default=90, help="Keep snapshots within this many days (default: 90)")
+
     args = parser.parse_args(argv)
 
     if args.command == "analyze":
         cmd_analyze(args)
     elif args.command == "export":
         cmd_export(args)
+    elif args.command == "snapshot":
+        cmd_snapshot(args)
     else:
         parser.print_help()
         sys.exit(1)
+
