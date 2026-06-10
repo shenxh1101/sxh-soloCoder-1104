@@ -8,6 +8,7 @@ from .parser import LinkInfo, NoteInfo
 
 
 CACHE_FILENAME = ".kb_heatmap_cache.json"
+CACHE_VERSION = 2
 
 
 def _link_info_to_dict(li: LinkInfo) -> dict:
@@ -16,6 +17,7 @@ def _link_info_to_dict(li: LinkInfo) -> dict:
         "target_path": li.target_path,
         "anchor": li.anchor,
         "alias": li.alias,
+        "is_same_page": li.is_same_page,
     }
 
 
@@ -25,6 +27,7 @@ def _dict_to_link_info(d: dict) -> LinkInfo:
         target_path=d.get("target_path", ""),
         anchor=d.get("anchor", ""),
         alias=d.get("alias", ""),
+        is_same_page=d.get("is_same_page", False),
     )
 
 
@@ -60,6 +63,9 @@ def load_cache(vault_path: str) -> Optional[dict[str, NoteInfo]]:
         return None
     try:
         data = json.loads(cache_path.read_text(encoding="utf-8"))
+        version = data.get("version", 1)
+        if version != CACHE_VERSION:
+            return None
         return {k: _dict_to_note(v) for k, v in data.get("notes", {}).items()}
     except (json.JSONDecodeError, KeyError, TypeError):
         return None
@@ -68,6 +74,7 @@ def load_cache(vault_path: str) -> Optional[dict[str, NoteInfo]]:
 def save_cache(vault_path: str, notes: dict[str, NoteInfo]) -> None:
     cache_path = Path(vault_path).resolve() / CACHE_FILENAME
     data = {
+        "version": CACHE_VERSION,
         "notes": {k: _note_to_dict(v) for k, v in notes.items()},
     }
     cache_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -8,6 +8,15 @@ from typing import Optional
 from .parser import BrokenLink, LinkInfo, NoteInfo, parse_note
 
 
+def normalize_tag(tag: str) -> str:
+    t = tag.strip().lstrip("#")
+    return t.lower()
+
+
+def normalize_tags(tags: list[str]) -> list[str]:
+    return [normalize_tag(t) for t in tags if t and t.strip()]
+
+
 @dataclass
 class Edge:
     source: str
@@ -234,10 +243,10 @@ class KnowledgeGraph:
         return isolated
 
     def filter_by_tags(self, tags: list[str]) -> KnowledgeGraph:
-        tags_lower = {t.lower() for t in tags}
+        tags_lower = set(normalize_tags(tags))
         filtered = KnowledgeGraph()
         for key, note in self.notes.items():
-            note_tags_lower = {t.lower() for t in note.tags}
+            note_tags_lower = {normalize_tag(t) for t in note.tags}
             if note_tags_lower & tags_lower:
                 filtered.notes[key] = note
         filtered.resolve_edges()

@@ -165,7 +165,12 @@ def generate_report(graph: KnowledgeGraph, top_n: int = 10) -> str:
     return "\n".join(lines)
 
 
-def export_json_report(graph: KnowledgeGraph, output_path: Optional[str] = None) -> dict:
+def export_json_report(
+    graph: KnowledgeGraph,
+    output_path: Optional[str] = None,
+    filter_tags: Optional[list[str]] = None,
+    filter_folder: Optional[str] = None,
+) -> dict:
     overview = {
         "total_notes": len(graph.notes),
         "total_links": len(graph.edges),
@@ -243,8 +248,16 @@ def export_json_report(graph: KnowledgeGraph, output_path: Optional[str] = None)
 
     edges_data = [{"source": e.source, "target": e.target} for e in graph.edges]
 
+    from .graph import normalize_tags
+
+    filters_applied = {
+        "tags": normalize_tags(filter_tags) if filter_tags else [],
+        "folder": filter_folder or "",
+    }
+
     report = {
         "generated_at": time.time(),
+        "filters": filters_applied,
         "overview": overview,
         "core_hubs_7d": hubs_7d,
         "core_hubs_30d": hubs_30d,
